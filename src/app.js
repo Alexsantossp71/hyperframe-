@@ -126,14 +126,19 @@ async function encodeMp4(webm) {
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
 
+let renderPromise = null;
 async function generateMp4() {
+  if (renderPromise) return renderPromise;
   const button = document.querySelector('#generate'); button.disabled = true; button.textContent = 'Gerando MP4…'; exportBox.classList.add('show');
-  try { renderedVideo = await encodeMp4(await recordCanvas()); status.textContent = '● MP4 pronto'; document.querySelector('#download').textContent = 'Baixar MP4 ↓'; document.querySelector('#share').textContent = 'Compartilhar MP4 ↗'; }
-  catch (error) { console.error(error); status.textContent = '● erro na renderização'; alert('Não foi possível gerar o MP4 neste navegador. Tente novamente em um computador ou navegador atualizado.'); }
-  finally { button.disabled = false; button.textContent = 'Gerar MP4'; }
+  renderPromise = (async () => {
+    try { renderedVideo = await encodeMp4(await recordCanvas()); status.textContent = '● MP4 pronto'; document.querySelector('#download').textContent = 'Baixar MP4 ↓'; document.querySelector('#share').textContent = 'Compartilhar MP4 ↗'; return renderedVideo; }
+    catch (error) { console.error(error); status.textContent = '● erro na renderização'; alert('Não foi possível gerar o MP4 neste navegador. Tente novamente em um computador ou navegador atualizado.'); return null; }
+    finally { button.disabled = false; button.textContent = 'Gerar MP4'; renderPromise = null; }
+  })();
+  return renderPromise;
 }
 
 document.querySelector('#generate').onclick = generateMp4;
-document.querySelector('#download').onclick = () => { if (!renderedVideo) return generateMp4(); const a = document.createElement('a'); a.href = URL.createObjectURL(renderedVideo); a.download = 'frameforge-instagram.mp4'; a.click(); };
+document.querySelector('#download').onclick = async () => { const video = renderedVideo || await generateMp4(); if (!video) return; const a = document.createElement('a'); a.href = URL.createObjectURL(video); a.download = 'frameforge-instagram.mp4'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
 document.querySelector('#share').onclick = async () => { if (!renderedVideo) await generateMp4(); if (!renderedVideo) return; const file = new File([renderedVideo], 'frameforge-instagram.mp4', { type: 'video/mp4' }); if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) await navigator.share({ title: 'Minha animação FrameForge', text: 'Vídeo criado para Instagram', files: [file] }); else alert('O compartilhamento de arquivo não está disponível neste navegador. Gere o MP4 e use o botão Baixar.'); };
 showFrame(0);
