@@ -10,11 +10,23 @@ const duration = document.querySelector('#duration');
 const timecode = document.querySelector('#timecode');
 const exportBox = document.querySelector('#export');
 const status = document.querySelector('.status');
+const progressWrap = document.querySelector('#progressWrap');
+const progressBar = document.querySelector('#progressBar');
+const progressValue = document.querySelector('#progressValue');
+const progressLabel = document.querySelector('#progressLabel');
 const styles = { signal:['#111b24','#183b39','#9eab4d','#d8fa88'], editorial:['#e5e0d5','#a99d8a','#443e37','#fff8ea'], neon:['#160d29','#33125e','#e84d9b','#64f5ff'] };
 let selectedStyle = 'signal';
 let currentFrame = 0;
 let images = Array(6).fill(null);
 let renderedVideo = null;
+
+function setProgress(value, label) {
+  const percent = Math.max(0, Math.min(100, Math.round(value)));
+  progressWrap.classList.add('active');
+  progressBar.style.width = `${percent}%`;
+  progressValue.textContent = `${percent}%`;
+  progressLabel.textContent = label;
+}
 
 const totalDuration = () => Number(duration.value) * 6;
 const getText = (i) => frameInputs[i].value.trim() || `Frame ${String(i + 1).padStart(2, '0')}`;
@@ -107,7 +119,7 @@ async function recordCanvas() {
   const total = sceneFrames * 6;
   for (let n = 0; n < total; n++) {
     drawCanvasFrame(ctx, Math.min(5, Math.floor(n / sceneFrames)), (n % sceneFrames) / sceneFrames);
-    if (n % 4 === 0) { const pct = Math.round((n / total) * 70); status.textContent = `● renderizando ${pct}%`; }
+    if (n % 4 === 0) { const pct = Math.round((n / total) * 70); status.textContent = `● renderizando ${pct}%`; setProgress(pct, 'Renderizando frames…'); }
     await new Promise(resolve => setTimeout(resolve, 1000 / fps));
   }
   recorder.stop();
@@ -117,7 +129,7 @@ async function recordCanvas() {
 
 async function encodeMp4(webm) {
   const ffmpeg = new FFmpeg();
-  ffmpeg.on('progress', ({ progress }) => { status.textContent = `● convertendo ${Math.round(70 + progress * 30)}%`; });
+  ffmpeg.on('progress', ({ progress }) => { const pct = 70 + progress * 30; status.textContent = `● convertendo ${Math.round(pct)}%`; setProgress(pct, 'Convertendo para MP4…'); });
   const base = './ffmpeg';
   await ffmpeg.load({ coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'), wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm') });
   await ffmpeg.writeFile('input.webm', await fetchFile(webm));
@@ -129,9 +141,9 @@ async function encodeMp4(webm) {
 let renderPromise = null;
 async function generateMp4() {
   if (renderPromise) return renderPromise;
-  const button = document.querySelector('#generate'); button.disabled = true; button.textContent = 'Gerando MP4…'; exportBox.classList.add('show');
+  const button = document.querySelector('#generate'); button.disabled = true; button.textContent = 'Gerando MP4…'; exportBox.classList.add('show'); setProgress(0, 'Preparando renderização…');
   renderPromise = (async () => {
-    try { renderedVideo = await encodeMp4(await recordCanvas()); status.textContent = '● MP4 pronto'; document.querySelector('#download').textContent = 'Baixar MP4 ↓'; document.querySelector('#share').textContent = 'Compartilhar MP4 ↗'; return renderedVideo; }
+    try { renderedVideo = await encodeMp4(await recordCanvas()); status.textContent = '● MP4 pronto'; setProgress(100, 'MP4 pronto para baixar'); document.querySelector('#download').textContent = 'Baixar MP4 ↓'; document.querySelector('#share').textContent = 'Compartilhar MP4 ↗'; return renderedVideo; }
     catch (error) { console.error(error); status.textContent = '● erro na renderização'; alert('Não foi possível gerar o MP4 neste navegador. Tente novamente em um computador ou navegador atualizado.'); return null; }
     finally { button.disabled = false; button.textContent = 'Gerar MP4'; renderPromise = null; }
   })();
