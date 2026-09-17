@@ -134,7 +134,11 @@ async function encodeMp4(webm) {
   const ffmpeg = new FFmpeg();
   ffmpeg.on('progress', ({ progress }) => { const pct = 70 + progress * 30; status.textContent = `● convertendo ${Math.round(pct)}%`; setProgress(pct, 'Convertendo para MP4…'); });
   const base = './ffmpeg';
-  await ffmpeg.load({ coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'), wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm') });
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
+    wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+    workerURL: `${base}/worker.js`
+  });
   await ffmpeg.writeFile('input.webm', await fetchFile(webm));
   await ffmpeg.exec(['-i', 'input.webm', '-vf', 'scale=1080:1920:flags=lanczos', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p', '-movflags', 'faststart', 'output.mp4']);
   const data = await ffmpeg.readFile('output.mp4');
