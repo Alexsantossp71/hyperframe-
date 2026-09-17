@@ -86,7 +86,9 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 function drawCanvasFrame(ctx, frameIndex, progress) {
-  const W = ctx.canvas.width, H = ctx.canvas.height, s = styles[selectedStyle];
+  const SCALE = ctx.canvas.width / 1080;
+  const W = 1080, H = 1920, s = styles[selectedStyle];
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = s[1]; ctx.fillRect(0, 0, W, H);
   const image = images[frameIndex];
@@ -109,11 +111,12 @@ function drawCanvasFrame(ctx, frameIndex, progress) {
 }
 
 async function recordCanvas() {
-  const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1920;
+  const canvas = document.createElement('canvas'); canvas.width = 540; canvas.height = 960;
   const ctx = canvas.getContext('2d'); const fps = 24; const sceneFrames = Number(duration.value) * fps;
   const stream = canvas.captureStream(fps);
   const chunks = [];
-  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 8000000 });
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4000000 });
   recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
   recorder.start();
   const total = sceneFrames * 6;
@@ -133,7 +136,7 @@ async function encodeMp4(webm) {
   const base = './ffmpeg';
   await ffmpeg.load({ coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'), wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm') });
   await ffmpeg.writeFile('input.webm', await fetchFile(webm));
-  await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', 'faststart', 'output.mp4']);
+  await ffmpeg.exec(['-i', 'input.webm', '-vf', 'scale=1080:1920:flags=lanczos', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p', '-movflags', 'faststart', 'output.mp4']);
   const data = await ffmpeg.readFile('output.mp4');
   return new Blob([data.buffer], { type: 'video/mp4' });
 }
