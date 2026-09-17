@@ -118,7 +118,7 @@ async function recordCanvas() {
 async function encodeMp4(webm) {
   const ffmpeg = new FFmpeg();
   ffmpeg.on('progress', ({ progress }) => { status.textContent = `● convertendo ${Math.round(70 + progress * 30)}%`; });
-  const base = '/node_modules/@ffmpeg/core/dist/umd';
+  const base = './ffmpeg';
   await ffmpeg.load({ coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'), wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm') });
   await ffmpeg.writeFile('input.webm', await fetchFile(webm));
   await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', 'faststart', 'output.mp4']);
